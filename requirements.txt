@@ -1,0 +1,16 @@
+# my-agent-hub dependencies
+# Python 3.11 required
+
+# Core agent framework
+google-adk>=0.3.0
+
+# CLI
+click>=8.1.7
+
+# Config / data
+pyyaml>=6.0.1
+pydantic>=2.7.0
+
+# Utilities
+python-dotenv>=1.0.1
+rich>=13.7.1          # pretty terminal output
