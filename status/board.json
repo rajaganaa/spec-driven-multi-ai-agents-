@@ -1,6 +1,6 @@
 {
   "project_id": "eval-golden",
-  "updated_at": "2026-07-04T12:43:36.979832+00:00",
+  "updated_at": "2026-07-04T12:44:29.563662+00:00",
   "tasks": [
     {
       "id": "EVAL01",
@@ -11,6 +11,13 @@
     },
     {
       "id": "EVAL02",
+      "feature": "FEVAL",
+      "status": "done",
+      "agent": "coder",
+      "commit": "5f9f386"
+    },
+    {
+      "id": "EVAL03",
       "feature": "FEVAL",
       "status": "in_progress",
       "agent": "coder",
