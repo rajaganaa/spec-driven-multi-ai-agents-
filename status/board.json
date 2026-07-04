@@ -1,54 +1,54 @@
 {
-  "project_id": "eval-golden",
-  "updated_at": "2026-07-04T12:48:38.756997+00:00",
+  "project_id": "project-2026-06-26",
+  "updated_at": "2026-06-26T08:39:34.886849+00:00",
   "tasks": [
     {
-      "id": "EVAL01",
-      "feature": "FEVAL",
+      "id": "T01",
+      "feature": "F02",
       "status": "done",
       "agent": "coder",
-      "commit": "57e0add"
+      "commit": "c083f89"
     },
     {
-      "id": "EVAL02",
-      "feature": "FEVAL",
-      "status": "done",
-      "agent": "coder",
-      "commit": "5f9f386"
-    },
-    {
-      "id": "EVAL03",
-      "feature": "FEVAL",
-      "status": "done",
-      "agent": "coder",
-      "commit": "72ee465"
-    },
-    {
-      "id": "EVAL04",
-      "feature": "FEVAL",
-      "status": "done",
-      "agent": "coder",
-      "commit": "0269b48"
-    },
-    {
-      "id": "EVAL05",
-      "feature": "FEVAL",
-      "status": "done",
-      "agent": "coder",
-      "commit": "458e305"
-    },
-    {
-      "id": "EVAL06",
-      "feature": "FEVAL",
-      "status": "done",
-      "agent": "tester",
-      "commit": "e70bac2"
-    },
-    {
-      "id": "EVAL07",
-      "feature": "FEVAL",
+      "id": "T02",
+      "feature": "F02",
       "status": "in_progress",
       "agent": "coder",
+      "commit": "38a53cb"
+    },
+    {
+      "id": "T03",
+      "feature": "F02",
+      "status": "pending",
+      "agent": "coder",
+      "commit": "645336c"
+    },
+    {
+      "id": "T04",
+      "feature": "F02",
+      "status": "pending",
+      "agent": "coder",
+      "commit": "d22220b"
+    },
+    {
+      "id": "T05",
+      "feature": "F02",
+      "status": "failed",
+      "agent": "tester",
+      "commit": "bb306e0"
+    },
+    {
+      "id": "T06",
+      "feature": "F03",
+      "status": "done",
+      "agent": "coder",
+      "commit": "54b235a"
+    },
+    {
+      "id": "T07",
+      "feature": "F03",
+      "status": "failed",
+      "agent": "tester",
       "commit": null
     }
   ]

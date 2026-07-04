@@ -58,6 +58,25 @@ from hub.memory import spec_loader
 from hub.runner import task_runner
 from hub.tools import tools
 
+import os
+import stat
+
+
+def _rmtree_force(path) -> None:
+    """shutil.rmtree that tolerates Windows' read-only git object files.
+    Plain shutil.rmtree(..., ignore_errors=True) can silently fail to
+    delete a project's old .git directory on Windows (git marks files
+    under .git/objects read-only), leaving stale commit history behind
+    for the next eval run -- which then sees 'nothing to commit' for
+    everything the coder writes."""
+    def _on_rm_error(func, path_, exc_info):
+        try:
+            os.chmod(path_, stat.S_IWRITE)
+            func(path_)
+        except Exception:
+            pass
+    shutil.rmtree(path, onerror=_on_rm_error)
+
 DEFAULT_EVAL_PROJECT_ID = "eval-golden"
 EVAL_FEATURE_ID = "FEVAL"
 EVAL_TASKS_SUBDIR = "EVAL"
@@ -225,7 +244,7 @@ async def run_eval_suite_async(
 
         proj_dir = tools.WORKSPACE_ROOT / project_id
         if proj_dir.exists() and not keep_workspace:
-            shutil.rmtree(proj_dir, ignore_errors=True)
+            _rmtree_force(proj_dir)
 
         try:
             for task in tasks:
@@ -237,19 +256,45 @@ async def run_eval_suite_async(
                     })
                     continue
 
-                effective_max_retries = 1 if task.expect_rejection else max_retries
-                run_result = await task_runner.run_task_async(
-                    task.id, project_id=project_id, model=model, max_retries=effective_max_retries,
-                )
-                run_result = dict(run_result)
-
-                # A reviewer correctly rejecting bad code is the intended
-                # outcome for this task, not an infra failure — don't let
-                # the retry-failure status hide a good review from the judge.
-                if (task.expect_rejection and not run_result.get("ok")
-                        and "reviewer requested changes" in (run_result.get("error") or "")):
-                    run_result["ok"] = True
-                    run_result["error"] = None
+                if task.expect_rejection:
+                    # This task's whole point is testing that the specialist
+                    # correctly REJECTS bad input. Don't run it through the
+                    # normal retry/coder-handoff machinery -- that machinery
+                    # treats any rejection as a failure to fix, which defeats
+                    # the purpose here. Call the role once directly, only
+                    # retrying on a real transient API error (never handing
+                    # off to a coder).
+                    from hub.runner.task_runner import ROLE_RUNNERS_ASYNC
+                    from hub.agents.specialists.common import DEFAULT_MAX_TURNS
+                    run_fn = ROLE_RUNNERS_ASYNC[task.role]
+                    run_result = None
+                    for _attempt in range(3):
+                        run_result = await run_fn(
+                            task.id, project_id=project_id, model=model,
+                            max_turns=DEFAULT_MAX_TURNS, extra_context=None,
+                        )
+                        err = run_result.get("error") or ""
+                        if run_result.get("ok") or not ("RESOURCE_EXHAUSTED" in err or "429" in err):
+                            break
+                        await asyncio.sleep(30)
+                    run_result = dict(run_result or {})
+                    has_real_output = bool(run_result.get("final_text")) or bool(run_result.get("tool_calls"))
+                    if has_real_output:
+                        # The reviewer actually produced real output (a
+                        # rejection with explanation, most likely) -- that
+                        # IS success for this task, regardless of what the
+                        # generic success-checker thinks about rejections.
+                        run_result["ok"] = True
+                        run_result["error"] = None
+                    # else: leave ok/error as whatever the real call
+                    # returned -- a genuine empty/failed call should stay
+                    # visible as a failure, not get silently disguised.
+                    run_result["commit_sha"] = None
+                else:
+                    run_result = await task_runner.run_task_async(
+                        task.id, project_id=project_id, model=model, max_retries=max_retries,
+                    )
+                    run_result = dict(run_result)
 
                 run_result["diff_text"] = _diff_text_for(project_id, run_result.get("commit_sha"))
 
@@ -259,7 +304,7 @@ async def run_eval_suite_async(
         finally:
             _cleanup_golden_specs(tasks_subdir)
             if not keep_workspace and proj_dir.exists():
-                shutil.rmtree(proj_dir, ignore_errors=True)
+                _rmtree_force(proj_dir)
 
     passed_count = sum(1 for r in results if r["judge"].get("ok") and r["judge"].get("passed"))
     judged = [r for r in results if r["judge"].get("ok")]
