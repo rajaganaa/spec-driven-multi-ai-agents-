@@ -27,3 +27,6 @@ workspace/.chroma/
 
 # OS noise
 .DS_Store
+
+project.meta.json
+status/board.json
