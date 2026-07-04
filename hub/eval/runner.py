@@ -237,10 +237,20 @@ async def run_eval_suite_async(
                     })
                     continue
 
+                effective_max_retries = 1 if task.expect_rejection else max_retries
                 run_result = await task_runner.run_task_async(
-                    task.id, project_id=project_id, model=model, max_retries=max_retries,
+                    task.id, project_id=project_id, model=model, max_retries=effective_max_retries,
                 )
                 run_result = dict(run_result)
+
+                # A reviewer correctly rejecting bad code is the intended
+                # outcome for this task, not an infra failure — don't let
+                # the retry-failure status hide a good review from the judge.
+                if (task.expect_rejection and not run_result.get("ok")
+                        and "reviewer requested changes" in (run_result.get("error") or "")):
+                    run_result["ok"] = True
+                    run_result["error"] = None
+
                 run_result["diff_text"] = _diff_text_for(project_id, run_result.get("commit_sha"))
 
                 judge_result = await run_judge_async(task, run_result, model=judge_model)

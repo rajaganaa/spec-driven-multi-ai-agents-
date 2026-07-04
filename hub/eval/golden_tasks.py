@@ -43,6 +43,8 @@ class GoldenTask:
     # project sandbox before the task runs — for tasks whose instructions
     # reference a file that must already exist (a bug to fix, code to
     # test, code to review). Keys match context_files where applicable.
+    expect_rejection: bool = False  # True when a "reviewer requested changes" result
+                                 # IS the correct, expected outcome (not a failure to retry)
 
 
 GOLDEN_TASKS: List[GoldenTask] = [
@@ -230,6 +232,7 @@ GOLDEN_TASKS: List[GoldenTask] = [
         ],
         rubric=["Feedback is specific to the actual vulnerable line, not generic security advice"],
         context_files=["search.py"],
+        expect_rejection=True,
         seed_files={
             "search.py": (
                 "def search_users(name, db_connection):\n"
