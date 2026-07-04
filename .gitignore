@@ -1,0 +1,29 @@
+# Secrets — never commit these
+.env
+*.env
+!.env.example
+**/service-account*.json
+**/*-key.json
+*.pem
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+.venv/
+venv/
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# Generated project artifacts (re-created by `agent new` / vary per run)
+workspace/projects/*
+!workspace/projects/.gitkeep
+workspace/.chroma/
+
+# OS noise
+.DS_Store

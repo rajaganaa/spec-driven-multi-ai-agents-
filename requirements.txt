@@ -1,0 +1,35 @@
+# my-agent-hub dependencies
+# Python 3.11 required
+
+# Core agent framework
+google-adk>=0.3.0
+
+# CLI
+click>=8.1.7
+
+# Config / data
+pyyaml>=6.0.1
+pydantic>=2.7.0
+
+# Utilities
+python-dotenv>=1.0.1
+rich>=13.7.1          # pretty terminal output
+
+# --- Added for the vLLM/Gemini router + FastAPI backend (api.py) ---
+# httpx is already a transitive dep of google-adk, declared explicitly
+# since hub/agents/config.py imports it directly.
+httpx>=0.27,<1
+# Only needed once VLLM_BASE_URL is actually set (lazy-imported in
+# hub/agents/config.py) — but declared here so `pip install -r
+# requirements.txt` gives you the vLLM path working out of the box.
+# Pin matches the range google-adk's LiteLlm wrapper is tested against.
+litellm>=1.83.7,<=1.83.14
+fastapi>=0.133,<1
+uvicorn[standard]>=0.34,<1
+
+# --- Added for Phase 2: long-term memory via RAG (hub/memory/vector_store.py) ---
+# Local, embedded vector store (chromadb.PersistentClient) — no external
+# server, no hosted/paid service. hub/memory/vector_store.py ships its
+# own offline default embedding function (no extra ML/model-download
+# dependency required beyond chromadb itself).
+chromadb>=0.5,<2

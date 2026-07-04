@@ -1,0 +1,71 @@
+# my-agent-hub — Agent Configuration
+# All agents use Google ADK with Gemini models
+# Edit model names or instructions here without touching agent code
+
+orchestrator:
+  name: orchestrator
+  model: gemini-2.5-pro
+  max_features: 7 # decompose goal into at most N features
+  description: >
+    Understands the user goal, writes the project plan and feature specs,
+    assigns feature leads. Never holds full chat history.
+
+feature_lead:
+  name: feature_lead
+  model: gemini-2.5-pro
+  max_tasks_per_feature: 8
+  description: >
+    Owns one feature end-to-end. Breaks it into task specs and saves
+    them under specs/tasks/<feature>/. Each task gets acceptance criteria
+    and a context file list.
+
+eval_judge:
+  name: eval_judge
+  model: gemini-2.5-pro
+  description: >
+    LLM-as-judge for hub/eval/. Scores a completed golden-eval task
+    against its acceptance criteria and quality rubric. Never runs code
+    or touches the project sandbox — text-only structured scoring.
+
+specialists:
+  explorer:
+    name: explorer
+    model: gemini-2.5-pro
+    allowed_tools: [read_file, list_dir, search_code]
+    description: Maps the repo, finds relevant files for a task.
+
+  coder:
+    name: coder
+    model: gemini-2.5-pro
+    allowed_tools: [read_file, write_file, apply_patch, search_code]
+    description: Implements files from a task spec.
+
+  tester:
+    name: tester
+    model: gemini-2.5-pro
+    allowed_tools: [read_file, run_terminal, run_tests]
+    description: Runs tests, reads errors, reports failures.
+
+  reviewer:
+    name: reviewer
+    model: gemini-2.5-pro
+    allowed_tools: [read_file, search_code]
+    description: Code review and security scan on completed task output.
+
+workspace:
+  base_path: workspace/projects # all file ops sandboxed here
+  max_context_files: 5
+  max_context_tokens: 15000
+  retry_limit: 3
+
+# Phase 2: long-term memory via RAG (hub/memory/vector_store.py). Set
+# enabled: false to turn off both indexing completed work and injecting
+# retrieved history into specialist prompts, e.g. if it's slow or
+# causing problems — everything else keeps working exactly as before.
+rag:
+  enabled: true
+  top_k: 5
+
+git:
+  auto_commit_on_success: true
+  commit_message_prefix: "[agent]"

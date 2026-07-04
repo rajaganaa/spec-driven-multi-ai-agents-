@@ -1,0 +1,67 @@
+name: Deploy frontend to GitHub Pages
+
+# I don't have visibility into the workflow pattern from the
+# `anbu-health-ai` repo the original instructions referenced, so this
+# is GitHub's current first-party Pages deployment flow
+# (configure-pages / upload-pages-artifact / deploy-pages) rather than
+# a copy of that repo's setup.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/deploy-frontend.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Write build-time env
+        working-directory: frontend
+        # VITE_API_URL must be set as a repository secret pointing at
+        # your deployed Cloud Run URL (Settings -> Secrets and
+        # variables -> Actions -> New repository secret).
+        run: echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" > .env
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

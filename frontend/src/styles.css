@@ -1,0 +1,369 @@
+/* ── Design tokens ──────────────────────────────────────────────────── */
+:root {
+  --bg: #0b0e17;
+  --bg-raised: #11152264;
+  --bg-card: #131826;
+  --bg-card-hover: #161c2d;
+  --border: #232a3d;
+  --border-soft: #1a2032;
+
+  --text: #e7e9f0;
+  --text-dim: #8d93a8;
+  --text-faint: #5b6178;
+
+  --accent: #6366f1;
+  --accent-soft: #6366f120;
+  --accent-strong: #818cf8;
+
+  --status-done: #22c55e;
+  --status-done-soft: #22c55e1a;
+  --status-failed: #ef4444;
+  --status-failed-soft: #ef44441a;
+  --status-pending: #8d93a8;
+  --status-pending-soft: #8d93a81a;
+  --status-progress: #eab308;
+  --status-progress-soft: #eab3081a;
+
+  --font-ui: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Menlo, monospace;
+
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: var(--font-ui);
+  color: var(--text);
+  background: var(--bg);
+}
+
+button, input, select, textarea { font-family: inherit; }
+
+::selection { background: var(--accent-soft); color: var(--accent-strong); }
+
+/* ── Shell ──────────────────────────────────────────────────────────── */
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 28px;
+  border-bottom: 1px solid var(--border-soft);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.brand-mark {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
+.brand-mark span { color: var(--accent-strong); }
+
+.brand-sub {
+  font-size: 12px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+}
+
+/* Signature element: live backend indicator. This isn't decorative —
+   it's the one thing this whole upgrade was actually about (silent
+   vLLM/Gemini failover), surfaced instead of hidden. */
+.backend-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  background: var(--bg-card);
+}
+
+.backend-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.backend-dot.vllm { background: var(--status-done); box-shadow: 0 0 8px var(--status-done); }
+.backend-dot.gemini { background: var(--status-progress); box-shadow: 0 0 8px var(--status-progress); }
+.backend-dot.unknown { background: var(--text-faint); }
+
+/* ── Tabs ───────────────────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.tab {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  padding: 14px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s ease;
+}
+
+.tab:hover { color: var(--text); }
+
+.tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────── */
+.main {
+  flex: 1;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-height: 0;
+}
+
+.content {
+  padding: 28px;
+  overflow-y: auto;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.card + .card { margin-top: 16px; }
+
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 14px;
+}
+
+/* ── Forms ──────────────────────────────────────────────────────────── */
+label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+textarea, input[type="text"] {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 14px;
+  resize: vertical;
+}
+
+textarea:focus, input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.field { margin-bottom: 14px; }
+
+.btn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+
+.btn:hover:not(:disabled) { background: var(--accent-strong); }
+.btn:active:not(:disabled) { transform: scale(0.98); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn.secondary {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.btn.secondary:hover:not(:disabled) { background: var(--bg-card-hover); }
+
+.btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+
+/* ── Status pills / table ──────────────────────────────────────────── */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.pill.done { background: var(--status-done-soft); color: var(--status-done); }
+.pill.failed { background: var(--status-failed-soft); color: var(--status-failed); }
+.pill.pending { background: var(--status-pending-soft); color: var(--status-pending); }
+.pill.in_progress { background: var(--status-progress-soft); color: var(--status-progress); }
+
+table { width: 100%; border-collapse: collapse; }
+
+th {
+  text-align: left;
+  font-size: 12px;
+  color: var(--text-faint);
+  font-weight: 500;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+td {
+  padding: 10px 12px;
+  font-size: 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+tr:last-child td { border-bottom: none; }
+
+.mono { font-family: var(--font-mono); }
+
+.empty-state {
+  color: var(--text-faint);
+  font-size: 14px;
+  padding: 24px;
+  text-align: center;
+}
+
+/* ── Files tab ──────────────────────────────────────────────────────── */
+.files-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 16px;
+  height: calc(100vh - 220px);
+}
+
+.file-list {
+  overflow-y: auto;
+  border-right: 1px solid var(--border-soft);
+  padding-right: 12px;
+}
+
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.file-item:hover { background: var(--bg-card-hover); }
+.file-item.selected { background: var(--accent-soft); color: var(--accent-strong); }
+.file-size { color: var(--text-faint); font-size: 11px; }
+
+.file-viewer {
+  overflow: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.file-viewer pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── Terminal-style log panel ──────────────────────────────────────── */
+.log-panel {
+  border-top: 1px solid var(--border);
+  background: #07090f;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  max-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.log-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text-faint);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.log-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 16px;
+}
+
+.log-line { color: var(--text-dim); white-space: pre-wrap; word-break: break-word; }
+.log-line.ok::before { content: "✓ "; color: var(--status-done); }
+.log-line.err::before { content: "✗ "; color: var(--status-failed); }
+.log-line.info::before { content: "→ "; color: var(--accent-strong); }
+
+.cursor {
+  display: inline-block;
+  width: 7px;
+  height: 13px;
+  background: var(--accent-strong);
+  margin-left: 2px;
+  animation: blink 1s step-start infinite;
+  vertical-align: middle;
+}
+
+@keyframes blink { 50% { opacity: 0; } }
+
+.error-banner {
+  background: var(--status-failed-soft);
+  border: 1px solid var(--status-failed);
+  color: #fca5a5;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
