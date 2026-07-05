@@ -215,6 +215,7 @@ async def run_specialist_task(
     model: Optional[Union[str, BaseLlm]] = None,
     max_turns: int = DEFAULT_MAX_TURNS,
     extra_context: Optional[str] = None,
+    feature: Optional[str] = None,
 ) -> dict:
     """Load task_id's entire context (hub.memory.spec_loader.build_agent_context
     — spec + listed files, nothing else, no chat history), run the
@@ -225,7 +226,7 @@ async def run_specialist_task(
     task_runner.py on retries to tell the specialist what went wrong
     last time, so a retry can actually fix something rather than
     blindly repeating the same failing actions."""
-    context = spec_loader.build_agent_context(task_id)
+    context = spec_loader.build_agent_context(task_id, feature=feature)
     if not context.get("ok"):
         return context
 

@@ -56,10 +56,11 @@ async def run_explorer_async(
     model: Optional[Union[str, BaseLlm]] = None,
     max_turns: int = DEFAULT_MAX_TURNS,
     extra_context: Optional[str] = None,
+    feature: Optional[str] = None,
 ) -> dict:
     return await run_specialist_task(
         ROLE, build_agent, task_id, project_id=project_id, model=model,
-        max_turns=max_turns, extra_context=extra_context,
+        max_turns=max_turns, extra_context=extra_context, feature=feature,
     )
 
 

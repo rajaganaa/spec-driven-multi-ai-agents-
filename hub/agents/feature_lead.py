@@ -247,7 +247,7 @@ async def run_feature_lead_async(
             return write_result
         task_spec_paths.append(rel_path)
 
-        board_result = spec_loader.update_board_status(item.id, "pending")
+        board_result = spec_loader.update_board_status(item.id, "pending", feature=feature_id)
         board_updates.append(
             {"task_id": item.id, "ok": board_result.get("ok"), "error": board_result.get("error")}
         )

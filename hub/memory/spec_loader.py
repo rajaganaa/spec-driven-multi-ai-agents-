@@ -266,12 +266,29 @@ def load_spec(spec_path: str) -> dict:
 
 # ── Task spec lookup ──────────────────────────────────────────────────────
 
-def find_task_spec_path(task_id: str) -> Optional[Path]:
+def find_task_spec_path(task_id: str, feature: Optional[str] = None) -> Optional[Path]:
     """Locate a task spec file by id, searching both the documented
     nested layout (specs/tasks/<feature>/T*.md) and the flat layout
-    used by the current scaffold example (specs/tasks/T*.md)."""
+    used by the current scaffold example (specs/tasks/T*.md).
+
+    Task IDs (T01, T02...) restart at 1 for EVERY feature, so they are
+    not globally unique -- without a feature hint this is inherently
+    ambiguous across a multi-feature project and silently returns
+    whichever feature happens to sort first alphabetically. Pass
+    feature whenever it's known to get a correct, deterministic match.
+    """
     if not TASKS_DIR.exists() or not task_id:
         return None
+
+    if feature:
+        feature_dir = TASKS_DIR / feature
+        if feature_dir.exists():
+            scoped = sorted(
+                p for p in feature_dir.glob("*.md")
+                if p.stem.lower().startswith(task_id.lower())
+            )
+            if scoped:
+                return scoped[0]
 
     candidates: List[Path] = []
     for p in sorted(TASKS_DIR.glob("*/*.md")):
@@ -358,12 +375,20 @@ def build_agent_context(
     task_id: str,
     max_files: int = MAX_CONTEXT_FILES,
     max_tokens: int = MAX_CONTEXT_TOKENS,
+    feature: Optional[str] = None,
 ) -> dict:
     """Given a task id, load its task spec plus (up to max_files) listed
     context files, capped at ~max_tokens total. Returns a dict that is
-    the specialist agent's entire prompt context — nothing else, no
-    chat history. No LLM calls."""
-    spec_path = find_task_spec_path(task_id)
+    the specialist agent's entire prompt context -- nothing else, no
+    chat history. No LLM calls.
+
+    Pass feature whenever known: task IDs (T01, T02...) restart at 1 for
+    every feature, so without it this silently loads whichever feature's
+    same-numbered task sorts first alphabetically -- the specialist then
+    receives a COMPLETELY WRONG spec/instructions with no indication
+    anything is wrong (this was a real, serious bug: an F17 React task
+    was silently handed F14's FastAPI-backend instructions instead)."""
+    spec_path = find_task_spec_path(task_id, feature=feature)
     if spec_path is None:
         return _err(f"No task spec found for task_id: {task_id}")
 
@@ -630,6 +655,7 @@ def update_board_status(
     status: str,
     commit: Optional[str] = None,
     agent: Optional[str] = None,
+    feature: Optional[str] = None,
 ) -> dict:
     """Update (or create) the matching task entry in status/board.json.
     Only overwrites agent/commit when explicitly provided, so a status
@@ -647,17 +673,29 @@ def update_board_status(
         return _err(str(e))
 
     tasks = board["tasks"]
-    entry = next((t for t in tasks if isinstance(t, dict) and t.get("id") == task_id), None)
+    # Task IDs restart at T01 for every feature -- match on (id, feature)
+    # together whenever feature is known, or a same-numbered task from a
+    # DIFFERENT feature silently clobbers this one's board entry (the
+    # real bug: a later feature's T01 was overwriting an earlier
+    # feature's already-"done" T01 entry).
+    if feature:
+        entry = next(
+            (t for t in tasks if isinstance(t, dict) and t.get("id") == task_id and t.get("feature") == feature),
+            None,
+        )
+    else:
+        entry = next((t for t in tasks if isinstance(t, dict) and t.get("id") == task_id), None)
     created = entry is None
 
     if entry is None:
-        feature = None
-        spec_path = find_task_spec_path(task_id)
-        if spec_path is not None:
-            spec = load_spec(str(spec_path))
-            if spec.get("ok"):
-                feature = spec.get("feature")
-        entry = {"id": task_id, "feature": feature, "status": status, "agent": agent, "commit": commit}
+        resolved_feature = feature
+        if resolved_feature is None:
+            spec_path = find_task_spec_path(task_id)
+            if spec_path is not None:
+                spec = load_spec(str(spec_path))
+                if spec.get("ok"):
+                    resolved_feature = spec.get("feature")
+        entry = {"id": task_id, "feature": resolved_feature, "status": status, "agent": agent, "commit": commit}
         tasks.append(entry)
     else:
         entry["status"] = status

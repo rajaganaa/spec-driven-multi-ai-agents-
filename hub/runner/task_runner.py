@@ -214,6 +214,7 @@ async def _run_reflection_cycle(
     model: Optional[Union[str, BaseLlm]],
     max_turns: int,
     max_rounds: int,
+    feature: Optional[str] = None,
 ) -> Tuple[bool, str, List[dict], dict]:
     """Cross-role handoff for a failing Reviewer/Tester attempt: route its
     feedback to a Coder specialist for a targeted fix (same task_id, same
@@ -239,6 +240,7 @@ async def _run_reflection_cycle(
 
         coder_result = await coder_run_fn(
             task_id, project_id=project_id, model=model, max_turns=max_turns, extra_context=handoff_note,
+            feature=feature,
         )
         coder_success, coder_reason = _determine_success("coder", coder_result)
         _persist_attempt_log(project_id, task_id, f"reflect-{round_num}-coder", "coder", coder_result, coder_success, coder_reason)
@@ -258,6 +260,7 @@ async def _run_reflection_cycle(
 
         verify_result = await verifier_run_fn(
             task_id, project_id=project_id, model=model, max_turns=max_turns, extra_context=None,
+            feature=feature,
         )
         verify_success, verify_reason = _determine_verify_success(verifier_role, verify_result)
         _persist_attempt_log(
@@ -287,13 +290,14 @@ async def run_task_async(
     model: Optional[Union[str, BaseLlm]] = None,
     max_turns: Optional[int] = None,
     max_retries: Optional[int] = None,
+    feature: Optional[str] = None,
 ) -> dict:
     """Run one task to completion (or exhaust its retries). Picks the
     specialist by the task spec's `role` field, builds context via
     spec_loader.build_agent_context (inside the specialist), runs the
     ADK loop, logs every attempt, updates status/board.json, and
     git-commits on success."""
-    spec_path = spec_loader.find_task_spec_path(task_id)
+    spec_path = spec_loader.find_task_spec_path(task_id, feature=feature)
     if spec_path is None:
         return _err(f"No task spec found for task_id: {task_id}", task_id=task_id)
 
@@ -316,7 +320,8 @@ async def run_task_async(
     resolved_max_turns = max_turns or DEFAULT_MAX_TURNS
     resolved_max_retries = max(1, max_retries if max_retries is not None else workspace_cfg.get("retry_limit", 3))
 
-    spec_loader.update_board_status(task_id, "in_progress", agent=role)
+    resolved_feature = spec.get("feature") or feature
+    spec_loader.update_board_status(task_id, "in_progress", agent=role, feature=resolved_feature)
 
     run_fn = ROLE_RUNNERS_ASYNC[role]
     attempts: List[dict] = []
@@ -330,6 +335,7 @@ async def run_task_async(
         # this same role, up to resolved_max_retries rounds.
         run_result = await run_fn(
             task_id, project_id=resolved_project_id, model=model, max_turns=resolved_max_turns, extra_context=None,
+            feature=spec.get("feature"),
         )
         success, reason = _determine_success(role, run_result)
         _persist_attempt_log(resolved_project_id, task_id, 1, role, run_result, success, reason)
@@ -342,7 +348,7 @@ async def run_task_async(
         if not success:
             success, reason, reflection_attempts, last_result = await _run_reflection_cycle(
                 task_id, resolved_project_id, role, run_fn, run_result, reason,
-                model, resolved_max_turns, resolved_max_retries,
+                model, resolved_max_turns, resolved_max_retries, feature=spec.get("feature"),
             )
             attempts.extend(reflection_attempts)
     else:
@@ -354,6 +360,7 @@ async def run_task_async(
                 model=model,
                 max_turns=resolved_max_turns,
                 extra_context=retry_note,
+                feature=spec.get("feature"),
             )
             success, reason = _determine_success(role, run_result)
             _persist_attempt_log(resolved_project_id, task_id, attempt_num, role, run_result, success, reason)
@@ -379,7 +386,7 @@ async def run_task_async(
             if commit_result.get("ok"):
                 commit_sha = commit_result.get("commit_sha")
 
-        spec_loader.update_board_status(task_id, "done", commit=commit_sha, agent=role)
+        spec_loader.update_board_status(task_id, "done", commit=commit_sha, agent=role, feature=resolved_feature)
         return _ok(
             task_id=task_id, role=role, feature=spec.get("feature"), status="done",
             attempts=attempts, attempt_count=len(attempts),
@@ -387,7 +394,7 @@ async def run_task_async(
             commit_sha=commit_sha,
         )
 
-    spec_loader.update_board_status(task_id, "failed", agent=role)
+    spec_loader.update_board_status(task_id, "failed", agent=role, feature=resolved_feature)
     return _err(
         f"Task {task_id} failed after {len(attempts)} attempt(s): {reason}",
         task_id=task_id, role=role, feature=spec.get("feature"), status="failed",
@@ -436,7 +443,8 @@ async def run_pending_tasks_async(
         if not task_id:
             continue
         result = await run_task_async(
-            task_id, project_id=resolved_project_id, model=model, max_turns=max_turns, max_retries=max_retries
+            task_id, project_id=resolved_project_id, model=model, max_turns=max_turns, max_retries=max_retries,
+            feature=task.get("feature"),
         )
         results.append(result)
         await asyncio.sleep(30)
