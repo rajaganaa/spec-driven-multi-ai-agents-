@@ -1,187 +1,116 @@
 # my-agent-hub
 
-A **spec-driven multi-agent coding system** built on Google ADK and Gemini.
+[![CI](https://github.com/rajaganaa/spec-driven-multi-ai-agents-/actions/workflows/ci.yml/badge.svg)](https://github.com/rajaganaa/spec-driven-multi-ai-agents-/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-You describe a goal in plain English → the Orchestrator decomposes it into spec files →
-Feature Lead agents break specs into tasks → Specialist agents execute with tools →
-git checkpoints after every completed task.
+**A spec-driven, autonomous multi-agent coding system** -- similar in spirit to Cursor Agent or Codex, but self-hosted and built on Google ADK + Gemini.
 
----
+You give it a single goal in plain English. A hierarchy of agents plans it, breaks it into specs and tasks, writes the code, tests it, and commits it -- end to end, with no manual coding required.
 
-## Architecture
+## How it works
 
-```
-You (plain English goal)
-        │
-        ▼
-Level 0 — Orchestrator          (gemini-2.5-pro)
-        │   writes project plan + feature specs
-        ▼
-Level 1 — Feature Leads         (gemini-2.5-pro, one per feature)
-        │   break features into task specs
-        ▼
-Level 2 — Specialists           (gemini-2.5-flash)
-  Explorer · Coder · Tester · Reviewer
-        │   execute tasks via tools
-        ▼
-Tools Layer
-  read_file · write_file · apply_patch · list_dir
-  search_code · run_terminal · git_status · git_commit
-        │
-        ▼
-workspace/projects/<project_id>/   ← ALL file ops sandboxed here
-```
+    You (plain English goal)
+            |
+            v
+    Level 0 - Orchestrator          (gemini-2.5-pro)
+            |   writes project plan + feature specs
+            v
+    Level 1 - Feature Leads         (gemini-2.5-pro, one per feature)
+            |   break features into task specs
+            v
+    Level 2 - Specialists           (gemini-2.5-flash)
+      Explorer . Coder . Tester . Reviewer
+            |   execute tasks via tools
+            v
+    Tools Layer
+      read_file . write_file . apply_patch . list_dir
+      search_code . run_terminal . git_status . git_commit
+            |
+            v
+    workspace/projects/project_id/   (all file ops sandboxed here)
 
----
+Each agent only ever sees its own spec file plus a handful of relevant files (max ~15k tokens) -- never the full chat history.
 
-## Folder Structure
+## Folder structure
 
-```
-my-agent-hub/
-├── cli/
-│   └── main.py               # CLI entry point (new / plan / run / status)
-├── config/
-│   └── agents.yaml           # Agent config (models, tool allowlists)
-├── hub/
-│   ├── agents/
-│   │   ├── orchestrator.py   # Level 0 — Orchestrator (Part D)
-│   │   ├── feature_lead.py   # Level 1 — Feature Lead  (Part D)
-│   │   └── specialists/      # Level 2 — Explorer, Coder, Tester, Reviewer (Part E)
-│   ├── memory/
-│   │   └── spec_loader.py    # Load specs + build agent context (Part C)
-│   ├── runner/
-│   │   └── task_runner.py    # Pick agent, run ADK loop, git commit (Part E)
-│   ├── tools/
-│   │   └── tools.py          # All tool functions, path-sandboxed (Part B)
-│   └── eval/                 # Golden tasks + LLM-as-judge (Part I)
-├── specs/
-│   ├── features/             # F01-auth.md, F02-api.md, …
-│   └── tasks/                # F01/T01-models.md, …
-├── status/
-│   └── board.json            # Task progress tracker
-├── workspace/
-│   └── projects/             # <project_id>/ — all generated code lives here
-├── project.meta.json         # Active project metadata
-└── requirements.txt
-```
-
----
+    my-agent-hub/
+    - cli/main.py               CLI entry point (new / plan / run / status)
+    - config/agents.yaml        Agent config (models, tool allowlists)
+    - hub/agents/                Orchestrator, Feature Lead, Specialists
+    - hub/memory/spec_loader.py  Loads specs, builds agent context
+    - hub/runner/task_runner.py  Picks agent, runs ADK loop, git commit
+    - hub/tools/tools.py         All tool functions, path-sandboxed
+    - hub/eval/                  Golden tasks + LLM-as-judge eval suite
+    - specs/features/            F01-auth.md, F02-api.md, etc
+    - specs/tasks/                F01/T01-models.md, etc
+    - frontend/                   React dashboard (Vite)
+    - status/board.json           Task progress tracker
+    - workspace/projects/         project_id/ - all generated code lives here
 
 ## Setup
 
 ### Prerequisites
 - Python 3.11
-- A Google AI Studio API key → [aistudio.google.com](https://aistudio.google.com)
-- (Optional) Docker — required for sandboxed terminal tool in Part B
+- Either a Google AI Studio API key at aistudio.google.com, or a GCP project with Vertex AI enabled plus a service account
 
-### 1. Clone / download
+### 1. Clone
 
-```bash
-git clone <your-repo-url>
-cd my-agent-hub
-```
+    git clone https://github.com/rajaganaa/spec-driven-multi-ai-agents-.git
+    cd spec-driven-multi-ai-agents-
 
-### 2. Create virtual environment
+### 2. Create a virtual environment
 
-```bash
-python3.11 -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-```
+    python3.11 -m venv .venv
+    source .venv/bin/activate
+
+On Windows use: .venv\Scripts\activate
 
 ### 3. Install dependencies
 
-```bash
-pip install -r requirements.txt
-```
+    pip install -r requirements.txt
 
-### 4. Set your Gemini API key
+### 4. Configure environment
 
-```bash
-# Option A — environment variable (recommended)
-export GOOGLE_API_KEY="your-api-key-here"
+    cp .env.example .env
 
-# Option B — .env file (create in project root)
-echo 'GOOGLE_API_KEY=your-api-key-here' > .env
-```
+Then edit .env and set one of:
+- GOOGLE_API_KEY (simplest, Google AI Studio), or
+- GOOGLE_GENAI_USE_VERTEXAI=true plus GOOGLE_CLOUD_PROJECT and credentials (Vertex AI)
+
+Never commit your real .env or a service-account key file. It is already gitignored.
 
 ### 5. Verify install
 
-```bash
-python -c "import google.adk; print('ADK OK')"
-python cli/main.py --help
-```
-
----
+    python -c "import google.adk; print('ADK OK')"
+    python cli/main.py --help
 
 ## Usage
 
-### Start a new project
+    python cli/main.py new "Build a hello world FastAPI app"
+    python cli/main.py plan
+    python cli/main.py run
+    python cli/main.py run --task T01
+    python cli/main.py status
 
-```bash
-python cli/main.py new "Build a HIPAA-aware medical FAQ chatbot with FastAPI and React"
-```
+Generated code appears under workspace/projects/project_id/, git-committed after every completed task.
 
-### Plan features (runs Orchestrator)
+## Running the eval suite
 
-```bash
-python cli/main.py plan
-```
+    pytest tests/ -v
+    python -m hub.eval.runner
 
-This writes `specs/features/F*.md` files.
+## Key design rules
 
-### Run all pending tasks
-
-```bash
-python cli/main.py run
-```
-
-### Run a specific task
-
-```bash
-python cli/main.py run --task T01
-```
-
-### Check status board
-
-```bash
-python cli/main.py status
-```
-
----
-
-## Build Order (5-Part Split)
-
-| Part | Who builds | What |
-|------|-----------|------|
-| A (this) | Claude 1 | Folder scaffold, CLI stub, config |
-| B | Claude 2 | `hub/tools/tools.py` — all tool functions |
-| C | Claude 3 | `hub/memory/spec_loader.py` — spec system |
-| D | Claude 4 | Orchestrator + Feature Lead agents |
-| E | Claude 5 | Specialist agents + TaskRunner + wire CLI |
-
-When all parts are ready:
-
-```bash
-pip install -r requirements.txt
-python cli/main.py new "build a hello world FastAPI app"
-python cli/main.py plan
-python cli/main.py run
-python cli/main.py status
-```
-
----
-
-## Key Design Rules
-
-- **Specs = memory** — agents read only their task spec, never full chat history
-- **Sandboxed workspace** — all file ops stay inside `workspace/projects/<id>/`
-- **Git checkpoints** — auto-commit after every completed task spec
-- **Fresh context per agent** — spec + up to 5 relevant files, max ~15k tokens
-- **Human gate** — approval required before destructive shell commands
-
----
+- Specs are memory -- agents read only their task spec, never full chat history
+- Sandboxed workspace -- all file ops stay inside workspace/projects/id/
+- Git checkpoints -- auto-commit after every completed task
+- Fresh context per agent -- spec plus up to 5 relevant files, ~15k token cap
+- Human gate -- approval required before destructive shell commands
 
 ## Contributing
 
-Each `hub/` sub-package has a `STUB` comment at the top indicating which Part implements it.
-Add your code there and remove the `raise NotImplementedError` line.
+Each hub/ sub-package has a STUB comment at the top indicating which part implements it. See CONTRIBUTING.md for module ownership and workflow.
+
+## License
+
+MIT

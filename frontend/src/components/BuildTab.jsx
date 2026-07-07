@@ -1,12 +1,13 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 
 export default function BuildTab({ project, runState, onNewProject, onPlan, onRunAll, busy }) {
   const [goal, setGoal] = useState("");
   const [stack, setStack] = useState("python,fastapi,react");
   const [constraints, setConstraints] = useState("");
   const [model, setModel] = useState("");
+  const [startNew, setStartNew] = useState(false);
 
-  const hasProject = Boolean(project);
+  const hasProject = Boolean(project) && !startNew;
   const isRunning = runState?.running;
 
   return (
@@ -63,19 +64,27 @@ export default function BuildTab({ project, runState, onNewProject, onPlan, onRu
 
         <div className="btn-row">
           {!hasProject && (
-            <button
-              className="btn"
-              disabled={busy || !goal.trim()}
-              onClick={() =>
-                onNewProject(
-                  goal.trim(),
-                  stack.split(",").map((s) => s.trim()).filter(Boolean),
-                  constraints.split(",").map((s) => s.trim()).filter(Boolean)
-                )
-              }
-            >
-              Create project
-            </button>
+            <>
+              <button
+                className="btn"
+                disabled={busy || !goal.trim()}
+                onClick={() => {
+                  onNewProject(
+                    goal.trim(),
+                    stack.split(",").map((s) => s.trim()).filter(Boolean),
+                    constraints.split(",").map((s) => s.trim()).filter(Boolean)
+                  );
+                  setStartNew(false);
+                }}
+              >
+                Create project
+              </button>
+              {Boolean(project) && (
+                <button className="btn secondary" disabled={busy} onClick={() => setStartNew(false)}>
+                  Cancel
+                </button>
+              )}
+            </>
           )}
           {hasProject && (
             <>
@@ -84,6 +93,9 @@ export default function BuildTab({ project, runState, onNewProject, onPlan, onRu
               </button>
               <button className="btn secondary" disabled={busy || isRunning} onClick={() => onRunAll(model.trim())}>
                 {isRunning ? "Running…" : "Run all pending tasks"}
+              </button>
+              <button className="btn secondary" disabled={busy || isRunning} onClick={() => setStartNew(true)}>
+                Start a different project
               </button>
             </>
           )}

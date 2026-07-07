@@ -65,11 +65,26 @@ def _load_board() -> dict:
     return json.loads(BOARD_PATH.read_text())
 
 
-def create_project_meta(goal: str, stack: list[str], constraints: list[str]) -> dict:
+def create_project_meta(goal: str, stack: list[str], constraints: list[str], project_id: str = None) -> dict:
     """Build a fresh project.meta.json + status/board.json and write
     both to disk. Pure setup, no LLM call — used by both `agent new`
-    and api.py's POST /api/new so the two don't duplicate this logic."""
-    project_id = f"project-{date.today().isoformat()}"
+    and api.py's POST /api/new so the two don't duplicate this logic.
+
+    If project_id isn't given, auto-generates one from today's date,
+    appending -2, -3, ... if a project with that id's workspace folder
+    already exists -- plain date-based IDs collide the moment you start
+    a second project on the same day, silently overwriting the first
+    project's board.json and merging its git history with the new one."""
+    if project_id:
+        resolved_id = project_id
+    else:
+        base_id = f"project-{date.today().isoformat()}"
+        resolved_id = base_id
+        suffix = 2
+        while (ROOT / "workspace" / "projects" / resolved_id).exists():
+            resolved_id = f"{base_id}-{suffix}"
+            suffix += 1
+    project_id = resolved_id
     meta = {
         "project_id": project_id,
         "goal": goal,
@@ -81,6 +96,21 @@ def create_project_meta(goal: str, stack: list[str], constraints: list[str]) -> 
         "features": [],
         "notes": "",
     }
+    if META_PATH.exists():
+        try:
+            existing = json.loads(META_PATH.read_text())
+            if existing.get("project_id") and existing["project_id"] != project_id:
+                # A different project was previously active -- back up its
+                # meta/board instead of silently overwriting them, since
+                # BOARD_PATH is a single global file shared by all projects.
+                backup_dir = ROOT / "status" / "archived_projects"
+                backup_dir.mkdir(parents=True, exist_ok=True)
+                (backup_dir / f"{existing['project_id']}.meta.json").write_text(json.dumps(existing, indent=2))
+                if BOARD_PATH.exists():
+                    (backup_dir / f"{existing['project_id']}.board.json").write_text(BOARD_PATH.read_text())
+        except (json.JSONDecodeError, OSError):
+            pass
+
     META_PATH.write_text(json.dumps(meta, indent=2))
     BOARD_PATH.parent.mkdir(parents=True, exist_ok=True)
     BOARD_PATH.write_text(json.dumps({"project_id": project_id, "updated_at": "", "tasks": []}, indent=2))
@@ -99,20 +129,23 @@ def cli():
 
 @cli.command()
 @click.argument("goal")
+@click.option("--project-id", default=None, help="Custom project id (default: auto-generated from today's date, deduped if needed).")
 @click.option("--stack", default="python,fastapi", show_default=True,
               help="Comma-separated tech stack (e.g. python,fastapi,react)")
 @click.option("--constraints", default="", help="Comma-separated constraints")
-def new(goal: str, stack: str, constraints: str):
+def new(goal: str, stack: str, constraints: str, project_id: str):
     """
     Start a new project from a plain-English GOAL.
 
     Example:
         python cli/main.py new "Build a HIPAA-aware medical FAQ chatbot"
+        python cli/main.py new "Build a scientific calculator" --project-id scientific-calculator
     """
     meta = create_project_meta(
         goal=goal,
         stack=[s.strip() for s in stack.split(",") if s.strip()],
         constraints=[c.strip() for c in constraints.split(",") if c.strip()],
+        project_id=project_id,
     )
     project_id = meta["project_id"]
 
