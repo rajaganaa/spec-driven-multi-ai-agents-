@@ -36,7 +36,7 @@ export default function BuildTab({ project, runState, onNewProject, onPlan, onRu
               <label>What do you want to build?</label>
               <textarea
                 rows={3}
-                placeholder="Build a HIPAA-aware medical FAQ chatbot with FastAPI and React"
+                placeholder="Describe what you want to build..."
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
               />
