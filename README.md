@@ -28,7 +28,7 @@ Level 0 — Orchestrator          (gemini-2.5-pro)
 Level 1 — Feature Leads         (gemini-2.5-pro, one per feature)
         │   Break features into individual task specs
         ▼
-Level 2 — Specialists           (gemini-2.5-flash)
+Level 2 — Specialists           (model set per agent in config/agents.yaml)
   Explorer · Coder · Tester · Reviewer
         │   Execute tasks via tool calls
         ▼
@@ -57,6 +57,9 @@ Each agent only ever sees its **own spec file** plus a small set of relevant fil
 - ✅ **React + Vite dashboard** — frontend for creating projects, watching status, browsing generated files
 - ✅ **Docker + Cloud Run ready** — Dockerfile and GCP deploy scripts included
 - ✅ **CI via GitHub Actions** — automated test runs on every push
+- ✅ **LLM-as-Judge evaluation** — a golden-task suite runs through the real task pipeline and is scored against acceptance criteria and a quality rubric (`hub/eval/`)
+- ✅ **RAG long-term memory** — completed work is indexed in a local ChromaDB store and retrieved into specialist prompts (toggle with `rag.enabled` in `config/agents.yaml`)
+- ✅ **Guarded terminal access** — shell commands are classified; risky ones require explicit approval
 
 ---
 
@@ -98,7 +101,7 @@ spec-driven-multi-ai-agents-/
 │   │   └── task_runner.py      # Picks agent per task, runs ADK loop, git commit
 │   ├── tools/
 │   │   └── tools.py            # All sandboxed tool functions (file, terminal, git)
-│   └── eval/                   # Evaluation utilities
+│   └── eval/                   # Golden-task suite + LLM-as-Judge scorer
 │
 ├── frontend/                   # Vite + React 18 dashboard
 │   ├── src/                    # React components and pages
@@ -110,7 +113,7 @@ spec-driven-multi-ai-agents-/
 │   └── agents.yaml             # Agent config (models, tool allowlists)
 │
 ├── specs/                      # Auto-generated spec files (project plan, features, tasks)
-├── tests/                      # Test suite (98+ tests)
+├── tests/                      # Test suite (140+ tests)
 ├── deploy/                     # GCP Cloud Run and AWS deploy scripts
 └── workspace/
     └── projects/               # Sandboxed output — all generated code lands here
@@ -171,6 +174,8 @@ GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
 # ── Frontend CORS (set in production) ───────────────────────────────────
 FRONTEND_ORIGIN=https://your-frontend-domain.com
 ```
+
+**Models:** each agent's Gemini model is set in `config/agents.yaml` (Orchestrator and Feature Leads default to Pro; specialist defaults in code are Flash and can be overridden in the YAML). Edit the YAML to trade quality against cost.
 
 **Model routing logic:**
 - If `VLLM_BASE_URL` is set and the vLLM health check passes → requests go to **vLLM**
@@ -301,7 +306,7 @@ See [`DEPLOYMENT.md`](DEPLOYMENT.md) and the scripts in `deploy/gcp/` for the fu
 pytest tests/ -v
 ```
 
-The test suite includes 98+ tests covering the hub internals, the model router, and the API endpoints.
+The test suite includes 140+ tests covering the spec loader, sandboxed tools, task runner, RAG vector store, evaluation harness, CLI, model router, and API endpoints.
 
 ---
 
